@@ -1,0 +1,19 @@
+---
+- name: Install Python on Remote Machines
+  hosts: all
+  become: true
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Install Python
+      apt:
+        name: python3
+      when: ansible_os_family == "Debian"
+
+    - name: Install Python
+      yum:
+        name: python3
+      when: ansible_os_family == "RedHat"
