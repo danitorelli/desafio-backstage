@@ -1,27 +1,87 @@
-apiVersion: backstage.io/v1beta2
+apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
-  name: ansible-python-install
-  title: Ansible Python Install Template
-  description: Generate Ansible playbook to install Python on remote machines
+  name: docs-template
+  title: Documentation Template
+  description: Crie um novo projeto de documentação independente
+  tags:
+    - recommended
+    - techdocs
+    - mkdocs
 spec:
-  type: code
-  path: ansible-python-install
-  schema:
-    properties:
-      machine_count:
-        type: integer
-        title: Machine Count
-        description: Number of remote machines to install Python on
-        default: 2
-    required:
-      - machine_count
+  owner: meu-time
+  type: documentation
+
+  parameters:
+    - title: Fill in some steps
+      required:
+        - name
+        - description
+      properties:
+        name:
+          title: Nome
+          type: string
+          description: Nome exclusivo do componente
+          ui:field: EntityNamePicker
+          ui:autofocus: true
+        description:
+          title: Descrição
+          type: string
+          description: Uma descrição para o componente
+        owner:
+          title: Dono
+          type: string
+          description: Dono do componente
+          ui:field: OwnerPicker
+          ui:options:
+            allowedKinds:
+              - Group
+    - title: Choose a location
+      required:
+        - repoUrl
+      properties:
+        repoUrl:
+          title: Repository Location
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts:
+              - github.com
+
+  # This template is meant to be used on top of an existing template.
+  # By adding the following and fetching from an absolute URL you can
+  # add in the docs template
   steps:
-    - id: generate-playbook
-      name: Generate Ansible Playbook
-      action: template:generate
+    - id: fetch
+      name: Template Docs Skeleton
+      action: fetch:template
       input:
-        templatePath: ./ansible-python-install/playbook.yml
-        outputPath: ${{ entityPath }}/playbook.yml
+        url: ./skeleton
         values:
-          machine_count: ${{ parameters.machine_count }}
+          name: ${{ parameters.name }}
+          description: ${{ parameters.description }}
+          destination: ${{ parameters.repoUrl | parseRepoUrl }}
+          owner: ${{ parameters.owner }}
+
+    - id: publish
+      name: Publish
+      action: publish:github
+      input:
+        allowedHosts: ['github.com']
+        description: This is ${{ parameters.name }}
+        repoUrl: ${{ parameters.repoUrl }}
+
+    - id: register
+      name: Register
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps.publish.output.repoContentsUrl }}
+        catalogInfoPath: '/catalog-info.yaml'
+
+  output:
+    links:
+      - title: Repository
+        url: ${{ steps.publish.output.remoteUrl }}
+      - title: Open in catalog
+        icon: catalog
+        entityRef: ${{ steps.register.output.entityRef }}
